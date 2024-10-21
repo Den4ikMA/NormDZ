@@ -1,0 +1,48 @@
+$systemInfo = Get-CimInstance -ClassName Win32_ComputerSystem
+$osInfo = Get-CimInstance -ClassName Win32_OperatingSystem
+$cpuInfo = Get-CimInstance -ClassName Win32_Processor
+$gpuInfo = Get-CimInstance -ClassName Win32_VideoController
+
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName System.Drawing
+
+$form = New-Object System.Windows.Forms.Form
+$form.Text = 'Мой компутэр'
+$form.Size = New-Object System.Drawing.Size(500,200)
+$form.StartPosition = 'CenterScreen'
+
+$button1 = New-Object System.Windows.Forms.Button
+$button1.Location = New-Object System.Drawing.Point(50,50)
+$button1.Size = New-Object System.Drawing.Size(95,35)
+$button1.Text = 'Процессор'
+$button1.Add_Click({
+[System.Windows.Forms.MessageBox]::Show($cpuInfo.Name,$cpuInfo.NumberOfCores)
+})
+$button2 = New-Object System.Windows.Forms.Button
+$button2.Location = New-Object System.Drawing.Point(150,50)
+$button2.Size = New-Object System.Drawing.Size(95,35)
+$button2.Text = 'ОЗУ(ГБ)'
+$button2.Add_Click({
+[System.Windows.Forms.MessageBox]::Show([math]::round($systemInfo.TotalPhysicalMemory/1GB))
+})
+$button3 = New-Object System.Windows.Forms.Button
+$button3.Location = New-Object System.Drawing.Point(250,50)
+$button3.Size = New-Object System.Drawing.Size (95,35)
+$button3.Text = 'Видеоадаптер'
+$button3.Add_Click({
+[System.Windows.Forms.MessageBox]::Show($gpuInfo.Name)
+})
+
+$button4 = New-Object System.Windows.Forms.Button
+$button4.Location = New-Object System.Drawing.Point(350,50)
+$button4.Size = New-Object System.Drawing.Size(95,35)
+$button4.Text = 'Винда'
+$button4.Add_Click({
+[System.Windows.Forms.MessageBox]::Show($osInfo.Caption)
+})
+$form.Controls.Add($button1)
+$form.Controls.Add($button2)
+$form.Controls.Add($button3)
+$form.Controls.Add($button4)
+
+$form.ShowDialog()
