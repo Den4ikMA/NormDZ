@@ -133,6 +133,6 @@ def process_images_in_directory(input_directory):
             decompress_text_to_image(compressed_text, output_image_path)
             print(f'Saved reconstructed image to {output_image_path}')
 
-# Example usage
+# Example usage input_direcrory=r'путь к вашей папке с картинкой'
 input_directory = r'C:\pics'
 process_images_in_directory(input_directory)
