@@ -1,0 +1,149 @@
+import os
+from PIL import Image
+import numpy as np
+
+def compress_image_to_4_colors(image_path):
+    img = Image.open(image_path)
+    img = img.quantize(colors=4)  # Сжимаем изображение до палитры из 4 цветов
+    return img
+
+def compress_image_to_text(image):
+    width, height = image.size
+    data = np.array(image)
+
+    compressed_output = ""
+
+    # Соответствие каждого индекса цвета двоичному коду
+    color_map = {
+        0: '00',  # Первый цвет (например, белый)
+        1: '01',  # Второй цвет (например, черный)
+        2: '10',  # Третий цвет (например, розовый)
+        3: '11'   # Четвертый цвет (например, зеленый)
+    }
+
+    for y in range(height):
+        for x in range(width):
+            pixel_value = data[y, x]  # Получаем значение пикселя (0-3)
+            compressed_output += color_map[pixel_value]  # Соответствующий двоичный код
+        compressed_output += '\n'  # Новая строка после каждой строки
+
+    return compressed_output, image.getpalette()  # Возвращаем также палитру цветов
+
+def text_to_bytes(input_file_path, output_file_path):
+    with open(input_file_path, 'r', encoding='utf-8') as file:
+        content = file.read()
+
+    # Split the content into chunks of 8 characters
+    byte_chunks = [content[i:i + 8] for i in range(0, len(content), 8)]
+
+    # Convert each chunk to bytes and store in a list
+    byte_array = []
+    for chunk in byte_chunks:
+        # Pad the chunk with spaces if it's less than 8 characters
+        if len(chunk) < 8:
+            chunk = chunk.ljust(8)  # Pad with spaces to ensure it has 8 characters
+        byte_array.append(chunk.encode('utf-8'))  # Convert to bytes
+
+    # Write the byte representation to the output file
+    with open(output_file_path, 'wb') as output_file:
+        for byte_chunk in byte_array:
+            output_file.write(byte_chunk)
+
+def convert_text_to_bytes(input_text_file_path, output_text_file_path):
+    with open(input_text_file_path, 'r', encoding='utf-8') as input_file:
+        binary_string = input_file.read().replace('\n', '')  # Remove newlines
+
+    # Ensure the binary string length is a multiple of 8
+    if len(binary_string) % 8 != 0:
+        binary_string = binary_string.ljust(len(binary_string) + (8 - len(binary_string) % 8), '0')
+
+    # Split the binary string into chunks of 8
+    byte_chunks = [binary_string[i:i + 8] for i in range(0, len(binary_string), 8)]
+
+    # Write the byte chunks to the output text file
+    with open(output_text_file_path, 'w', encoding='utf-8') as output_file:
+        for byte in byte_chunks:
+            output_file.write(byte + '\n')  # Write each byte on a new line
+
+def convert_grouped_bytes_to_decimal(input_grouped_bytes_file_path, output_decimal_file_path):
+    with open(input_grouped_bytes_file_path, 'r', encoding='utf-8') as input_file:
+        lines = input_file.readlines()
+
+    decimal_values = []
+    
+    for line in lines:
+        binary_str = line.strip()  # Убираем лишние пробелы и переносы
+        
+        # Обрабатываем строку по 8 символов
+        for i in range(0, len(binary_str), 8):
+            byte = binary_str[i:i+8]  # Получаем 8 бит
+            if len(byte) == 8:  # Проверяем на полный байт
+                decimal_value = int(byte, 2)  # Преобразуем двоичный код в десятичное число
+                decimal_values.append(str(decimal_value))   # Сохраняем как строку
+    
+    with open(output_decimal_file_path, 'w', encoding='utf-8') as output_file:
+        output_file.write('\n'.join(decimal_values))   # Записываем все десятичные значения в файл
+
+def decompress_text_to_colored_image(compressed_text, palette, output_image_path):
+    lines = compressed_text.strip().split('\n')
+    
+    height = len(lines)
+    width = len(lines[0]) // 2  # Каждый пиксель представлен двумя символами
+
+    image_data = np.zeros((height, width), dtype=np.uint8)
+
+    binary_to_index_map = {
+        '00': 0,
+        '01': 1,
+        '10': 2,
+        '11': 3
+    }
+
+    for y, line in enumerate(lines):
+        for x in range(0, len(line), 2):  # Идем с шагом 2
+            binary_code = line[x:x+2]  # Берем два символа (двоичный код)
+            if binary_code in binary_to_index_map:
+                image_data[y, x // 2] = binary_to_index_map[binary_code]  # Присваиваем индекс цвета
+
+    reconstructed_image = Image.fromarray(image_data)
+    
+    if palette:
+        reconstructed_image.putpalette(palette)  # Применяем палитру к изображению
+
+    reconstructed_image.save(output_image_path)
+
+def process_images_in_directory(input_directory):
+    for filename in os.listdir(input_directory):
+        if filename.lower().endswith(('.png', '.jpg', '.jpeg')):
+            image_path = os.path.join(input_directory, filename)
+            print(f'Обработка {image_path}...')
+            
+            compressed_text, palette = compress_image_to_text(compress_image_to_4_colors(image_path))
+            
+            text_file_path = os.path.join(input_directory, f'{os.path.splitext(filename)[0]}_compressed.txt')
+            with open(text_file_path, 'w', encoding='utf-8') as text_file:
+                text_file.write(compressed_text)
+            
+            print(f'Сохранено сжатое текстовое представление в {text_file_path}')
+
+            output_bytes_file_path = os.path.join(input_directory, f'{os.path.splitext(filename)[0]}_compressed_bytes.bin')
+            text_to_bytes(text_file_path, output_bytes_file_path)
+            print(f'Saved byte representation to {output_bytes_file_path}')
+            
+            output_image_path = os.path.join(input_directory, f'{os.path.splitext(filename)[0]}_reconstructed.png')
+            decompress_text_to_colored_image(compressed_text, palette, output_image_path)
+            print(f'Сохранено восстановленное изображение в {output_image_path}')
+
+            output_grouped_text_file_path = os.path.join(input_directory, f'{os.path.splitext(filename)[0]}_grouped_bytes.txt')
+            with open(output_grouped_text_file_path, 'w', encoding='utf-8') as grouped_bytes_file:
+                grouped_bytes_file.write(compressed_text.replace('\n', ''))   # Сохраняем сгруппированные байты
+            
+            print(f'Сохранены сгруппированные байты в {output_grouped_text_file_path}')
+            
+            output_decimal_values_file_path = os.path.join(input_directory, f'{os.path.splitext(filename)[0]}_decimal_values.txt')
+            convert_grouped_bytes_to_decimal(output_grouped_text_file_path, output_decimal_values_file_path)
+            print(f'Сохранены десятичные значения в {output_decimal_values_file_path}')
+
+# Пример использования
+input_directory = r'---'
+process_images_in_directory(input_directory)
