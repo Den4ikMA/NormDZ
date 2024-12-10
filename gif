@@ -1,0 +1,95 @@
+import os
+import glob
+from PIL import Image
+import numpy as np
+
+def compress_image_to_4_colors(image_path):
+    """Сжимает изображение до палитры из 4 цветов."""
+    img = Image.open(image_path)
+    img = img.quantize(colors=4)  # Сжимаем изображение до палитры из 4 цветов
+    return img
+
+def compress_image_to_text(image):
+    width, height = image.size
+    data = np.array(image)
+
+    compressed_output = ""
+
+    # Соответствие каждого индекса цвета двоичному коду
+    color_map = {
+        0: '00',  # Первый цвет (например, белый)
+        1: '01',  # Второй цвет (например, черный)
+        2: '10',  # Третий цвет (например, розовый)
+        3: '11'   # Четвертый цвет (например, зеленый)
+    }
+
+    for y in range(height):
+        for x in range(width):
+            pixel_value = data[y, x]  # Получаем значение пикселя (0-3)
+            compressed_output += color_map[pixel_value]  # Соответствующий двоичный код
+        compressed_output += '\n'  # Новая строка после каждой строки
+
+    return compressed_output, image.getpalette()  # Возвращаем также палитру цветов
+
+def decompress_text_to_colored_image(compressed_text, palette, output_image_path):
+    lines = compressed_text.strip().split('\n')
+    
+    height = len(lines)
+    width = len(lines[0]) // 2  # Каждый пиксель представлен двумя символами
+
+    image_data = np.zeros((height, width), dtype=np.uint8)
+
+    binary_to_index_map = {
+        '00': 0,
+        '01': 1,
+        '10': 2,
+        '11': 3
+    }
+
+    for y, line in enumerate(lines):
+        for x in range(0, len(line), 2):  # Идем с шагом 2
+            binary_code = line[x:x+2]  # Берем два символа (двоичный код)
+            if binary_code in binary_to_index_map:
+                image_data[y, x // 2] = binary_to_index_map[binary_code]  # Присваиваем индекс цвета
+
+    reconstructed_image = Image.fromarray(image_data)
+    
+    if palette:
+        reconstructed_image.putpalette(palette)  # Применяем палитру к изображению
+
+    reconstructed_image.save(output_image_path)
+
+def create_gif(image_paths, output_gif_path):
+    """Создает GIF из списка изображений."""
+    images = [Image.open(img) for img in image_paths]
+    images[0].save(output_gif_path, save_all=True, append_images=images[1:], duration=500, loop=0)
+    print(f"GIF успешно создан и сохранен как {output_gif_path}")
+
+def process_images_in_directory(input_directory):
+    compressed_images = []  # Список для хранения путей к сжатым изображениям
+    
+    for filename in os.listdir(input_directory):
+        if filename.lower().endswith(('.png', '.jpg', '.jpeg')):
+            image_path = os.path.join(input_directory, filename)
+            print(f'Обработка {image_path}...')
+            
+            compressed_img = compress_image_to_4_colors(image_path)  # Сжимаем изображение
+            compressed_text, palette = compress_image_to_text(compressed_img)  # Получаем текстовое представление
+            
+            output_image_path = os.path.join(input_directory, f'{os.path.splitext(filename)[0]}_compressed.png')
+            compressed_img.save(output_image_path)  # Сохраняем сжатое изображение
+            compressed_images.append(output_image_path)  # Добавляем путь к сжатому изображению
+            
+            print(f'Сохранено сжатое изображение в {output_image_path}')
+
+            output_reconstructed_path = os.path.join(input_directory, f'{os.path.splitext(filename)[0]}_reconstructed.png')
+            decompress_text_to_colored_image(compressed_text, palette, output_reconstructed_path)  
+            print(f'Сохранено восстановленное изображение в {output_reconstructed_path}')
+
+    if compressed_images:
+        output_gif_path = os.path.join(input_directory, 'output_animation.gif')
+        create_gif(compressed_images, output_gif_path)
+
+# Пример использования
+input_directory = r'C:\пикчи'
+process_images_in_directory(input_directory)
