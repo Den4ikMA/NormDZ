@@ -1,0 +1,183 @@
+using System;
+class Calculator
+{
+public void Add(int a, int b)
+{
+    int result = a + b;
+    Console.WriteLine($"Result add is {result}");
+}
+
+    public void Add(int a, int b, int c)
+    {
+        int result = a + b + c;
+        Console.WriteLine($"Result add is {result}");
+    }
+    public int Add(int a, int b, int c, int d)
+    {
+        int result = a + b + c + d;
+        Console.WriteLine($"Result add is {result}");
+        return result;
+    }
+    public void Add(double a, double b)
+    {
+        double result = a + b;
+        Console.WriteLine($"Result add is {result}");
+    }
+    public void Sub(int a, int b)
+    {
+        int result = a - b;
+        Console.WriteLine($"Result sub is {result}");
+    }
+    public void Sub(int a, int b, int c)
+    {
+        int result = a - b - c;
+        Console.WriteLine($"Result sub is {result}");
+    }
+    public int Sub(int a, int b, int c, int d)
+    {
+        int result = a - b - c - d;
+        Console.WriteLine($"Result sub is {result}");
+        return result;
+    }
+    public void Sub(double a, double b)
+    {
+        double result = a - b;
+        Console.WriteLine($"Result sub is {result}");
+    }
+    public void Mult(int a, int b)
+    {
+        int result = a * b;
+        Console.WriteLine($"Result mult is {result}");
+    }
+    public void Mult(int a, int b, int c)
+    {
+        int result = a * b * c;
+        Console.WriteLine($"Result mult is {result}");
+    }
+    public int Mult(int a, int b, int c, int d)
+    {
+        int result = a * b * c * d;
+        Console.WriteLine($"Result mult is {result}");
+        return result;
+    }
+    public void Mult(double a, double b)
+    {
+        double result = a * b;
+        Console.WriteLine($"Result mult is {result}");
+    }
+    public void Div(int a, int b)
+    {
+        if (b == 0)
+        {
+            Console.WriteLine($"Error");
+        }
+        else
+        {
+            int result = a / b;
+            Console.WriteLine($"Result div is {result}");
+        }
+    }
+    public void Div(int a, int b, int c)
+    {
+        int result = a / b / c;
+        Console.WriteLine($"Result div is {result}");
+    }
+    public int Div(int a, int b, int c, int d)
+    {
+        int result = a / b / c / d;
+        Console.WriteLine($"Result div is {result}");
+        return result;
+    }
+    public void Div(double a, double b)
+    {
+        double result = a / b;
+        Console.WriteLine($"Result div is {result}");
+    }
+    public int Sqr(int a)
+    {
+        int result = a * a;
+        Console.WriteLine($"Result sqr is {result}");
+        return result;
+    }
+    public void Sqr(double a)
+    {
+        double result = a * a;
+        Console.WriteLine($"Result sqr is {result}");
+
+    }
+}
+class Program
+{
+    static void Main(string[] args)
+    {
+        Calculator calc = new Calculator();
+
+        Console.WriteLine("Available operations: Add, Sub, Mult, Div");
+
+        Console.Write("Enter the aperation (Add, Sub, Mult, Div)");
+        string operation = Console.ReadLine();
+
+        Console.Write("Enter the numbers separated by spaces:" );
+        string input = Console.ReadLine();
+        string[] numbers = input.Split(' ');
+
+        if (operation.ToLower() == "add")
+        {
+            if (numbers.Lenght > 1 && numbers[0].Contains(".") | | numbers[1].Contains("."))
+            {
+                double[] values = Array.ConvertAll(numbers, double.Parse);
+                calc.Add(values);
+            }
+            else
+            {
+                int[] values = Array.ConvertAll(numbers, int.Parse);
+                calc.Add(values);
+            }
+        }
+        else if (operation.ToLower() == "subtract")
+        {
+            if(numbers.Length != 2)
+            {
+                Console.WriteLine("Subtract operation requires exactly 2 numbers.");
+            }
+            else
+            {
+                int a = int.Parse(numbers[0]);
+                int b = int.Parse(numbers[1]);
+                calc.Subtract(a, b);
+            }
+        }
+        else if (operation.ToLower() == "multiply")
+        {
+            if (numbers.Leigth != 2)
+            {
+            Console.WriteLine("Multiply operation requires exactly 2 numbers.");
+            }
+            else
+            {
+                int a = int.Parse(numbers[0]);
+                int b = int.Parse(numbers[1]);
+                calc.Multiply(a, b);
+            }
+        }
+        else if (operation.ToLower() == "Divide")
+        {
+            if (numbers.Leigth != 2)
+            {
+                Console.WriteLine("Multiply operation requires exactly 2 numbers.");
+            }
+            else
+            {
+                int a = int.Parse(numbers[0]);
+                int b = int.Parse(numbers[1]);
+                calc.Divide(a, b);
+            }
+        }
+        else
+        {
+            Console.WriteLine("Invalid operation.");
+        }
+Console.WriteLine("Prerss any key to exit. . .");
+Console.Read();
+}
+}
