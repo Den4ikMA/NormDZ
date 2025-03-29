@@ -1,0 +1,99 @@
+; Цельный код для образа диска
+format binary as 'img'
+org 0x7C00
+
+; Код для первого сектора
+start:
+    ; Установка сегментов
+    mov ax, cs
+    mov ds, ax
+    mov es, ax
+
+    ; Вывод сообщения на экран
+    mov si, message1
+    mov ah, 0x0E
+    mov bh, 0x00
+
+loop_start1:
+    lodsb
+    test al, al
+    jz loop_end1
+    int 0x10
+    jmp loop_start1
+
+loop_end1:
+    
+    ; Загрузка второго сектора
+    mov ax, 0x0200 ; Чтение сектора
+    mov bx, 0x8000 ; Адрес для загрузки
+    mov cx, 0x0002 ; Сектор 2 (номер сектора в CH, номер цилиндра в CL)
+    mov dh, 0x00   ; Номер головки
+    mov dl, 0x00   ; Номер диска (0 для флоппи)
+    int 0x13
+
+    ; Проверка ошибки
+    jc error
+
+    ; Переход к коду второго сектора
+    jmp 0x8000:0x0000
+
+error:
+    ; Обработка ошибки
+    mov si, error_message
+    mov ah, 0x0E
+    mov bh, 0x00
+
+error_loop:
+    lodsb
+    test al, al
+    jz error_end
+    int 0x10
+    jmp error_loop
+
+error_end:
+    jmp $
+
+error_message:
+    db 'Error loading sector!', 0
+
+message1:
+    db 'Hello from bootloader!', 0
+
+; Заполнение оставшегося пространства нулями
+times 510 - ($ - $$) db 0
+
+; Магическое число для загрузочного сектора
+dw 0xAA55
+
+; Пропуск 512 байт для второго сектора
+times 512 db 0
+
+; Код для второго сектора
+org 0x7E00
+
+start2:
+    ; Установка сегментов
+    mov ax, cs
+    mov ds, ax
+    mov es, ax
+
+    ; Вывод сообщения на экран
+    mov si, message2
+    mov ah, 0x0E
+    mov bh, 0x00
+
+loop_start2:
+    lodsb
+    test al, al
+    jz loop_end2
+    int 0x10
+    jmp loop_start2
+
+loop_end2:
+    jmp $
+
+message2:
+    db 'Loaded second sector!', 0
+
+; Заполнение оставшегося пространства нулями
+times 512 - ($ - $$) db 0
