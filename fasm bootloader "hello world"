@@ -1,0 +1,32 @@
+org 7C00h
+
+start:
+    cli
+    xor ax, ax
+    mov ds, ax
+    mov es, ax
+    mov ss, ax
+    mov sp, 0x7E00
+    sti
+
+    ; Установка видеорежима
+    mov ax, 0x03
+    int 0x10
+
+    ; Вывод строки
+    mov si, message
+print_loop:
+    lodsb
+    or al, al
+    jz halt
+    mov ah, 0x0E
+    int 0x10
+    jmp print_loop
+
+halt:
+    jmp $
+
+message db 'Hello World!',0
+
+times (7C00h + 512) - ($ - $$) db 0
+db 0x55, 0xAA
