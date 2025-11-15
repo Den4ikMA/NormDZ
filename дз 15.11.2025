@@ -1,0 +1,139 @@
+.model small
+.stack 100h
+.data
+    prompt db 'input characters (press ESC to exit):$'
+    buffer db 128 dup(0)
+    newline db 13,10,'$'
+.code
+main proc
+    mov ax, @data
+    mov ds, ax
+    lea dx, prompt
+    mov ah, 09h
+    int 21h
+    mov si, 0
+    mov cx, 0        
+    mov bx, 0        
+input_loop:
+    mov ah, 0
+    int 16h        
+    cmp al, 27h       
+    je exit_program
+    cmp al, 0        
+    jne normal_char
+    mov ah, 0
+    int 16h          
+    cmp al, 4Bh       
+    je arrow_left
+    cmp al, 4Dh       
+    je arrow_right
+    jmp input_loop
+arrow_left:
+    cmp bx, 0
+    je input_loop
+    dec bx
+    mov ah, 2
+    mov dl, 8        
+    int 21h
+    jmp input_loop
+arrow_right:
+    cmp bx, cx
+    jae input_loop
+    mov dl, [buffer+bx]
+    mov ah, 2
+    int 21h
+    inc bx
+    jmp input_loop
+normal_char:
+    cmp al, 13        
+    je display_string
+    cmp al, 8        
+    je backspace_char
+    cmp cx, 127       
+    je input_loop
+    cmp bx, cx
+    je store_char
+    mov di, cx
+shift_right:
+    cmp di, bx
+    jle store_char
+    mov al, [buffer+di-1]
+    mov [buffer+di], al
+    dec di
+    jmp shift_right
+store_char:
+    mov [buffer+bx], al
+    mov dl, al
+    mov ah, 2
+    int 21h
+    inc bx
+    inc cx
+    jmp input_loop
+backspace_char:
+    cmp bx, 0
+    je input_loop
+    dec bx
+    dec cx
+    mov si, bx
+move_left:
+    cmp si, cx
+    jae clear_last
+    mov al, [buffer+si+1]
+    mov [buffer+si], al
+    inc si
+    jmp move_left
+clear_last:
+    mov dl, 8
+    mov ah, 2
+    int 21h
+    mov dl, ' '
+    mov ah, 2
+    int 21h
+    mov dl, 8
+    mov ah, 2
+    int 21h
+    mov si, bx
+draw_right:
+    cmp si, cx
+    jae restore_cursor
+    mov dl, [buffer+si]
+    mov ah, 2
+    int 21h
+    inc si
+    jmp draw_right
+restore_cursor:
+    mov si, cx
+    sub si, bx
+return_cursor:
+    cmp si, 0
+    je input_loop
+    mov dl, 8
+    mov ah, 2
+    int 21h
+    dec si
+    jmp return_cursor
+display_string:
+    mov bx, offset buffer
+    mov si, cx
+    mov byte ptr [bx+si], 0
+    lea dx, newline
+    mov ah, 09h
+    int 21h
+    lea dx, buffer
+    mov ah, 09h
+    int 21h
+    lea dx, newline
+    mov ah, 09h
+    int 21h
+    mov si, 0
+    mov cx, 0
+    mov bx, 0
+    lea dx, prompt
+    mov ah, 09h
+    int 21h
+    jmp input_loop
+exit_program:
+    mov ah, 4Ch
+    int 21h
+main endp
+end main
