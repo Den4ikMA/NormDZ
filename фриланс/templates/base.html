@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Фриланс‑борд</title>
+</head>
+<body>
+  <nav>
+    {% if session.user_id %}
+      <span>Здравствуйте, {{ session.username }} ({{ session.role }})</span>
+      <a href="{{ url_for('logout') }}">Выход</a>
+    {% else %}
+      <a href="{{ url_for('login') }}">Вход</a>
+      <a href="{{ url_for('register') }}">Регистрация</a>
+    {% endif %}
+  </nav>
+
+  <hr>
+
+  {% for message in get_flashed_messages() %}
+    <p><strong>{{ message }}</strong></p>
+  {% endfor %}
+
+  {% block content %}{% endblock %}
+</body>
+</html>
