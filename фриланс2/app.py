@@ -4,7 +4,7 @@ from datetime import datetime
 from typing import List, Dict, Optional
 
 
-DB_NAME = r"C:\\фриланс\\freelance_board.db"
+DB_NAME = r"C:\\фриланс2\\freelance_board.db"
 
 
 # --- 1. init_db() должна быть ВНУТРИ этого файла ---
