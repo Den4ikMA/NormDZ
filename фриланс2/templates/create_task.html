@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <h1>Создать задачу</h1>
+  <form method="post">
+    <p>
+      <label>Название: <input type="text" name="title" required></label>
+    </p>
+    <p>
+      <label>Описание:<br>
+        <textarea name="description" rows="5"></textarea>
+      </label>
+    </p>
+    <p>
+      <label>Категория:
+        <select name="category">
+          <option value="coding">Кодинг</option>
+          <option value="design">Дизайн</option>
+          <option value="translation">Переводы</option>
+          <option value="consulting">Консультации</option>
+        </select>
+      </label>
+    </p>
+    <p>
+      <label>Бюджет: <input type="number" step="0.01" name="budget" min="0.01" required></label>
+    </p>
+    <p><button type="submit">Создать задачу</button></p>
+  </form>
+{% endblock %}
