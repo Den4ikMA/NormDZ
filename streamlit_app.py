@@ -310,7 +310,6 @@ def show_create_task():
             redirect_to("index")
 
 
-# ПОЛНАЯ show_task_detail (с кнопкой "Взять работу" + чат)
 def show_task_detail():
     show_navbar()
     if not st.session_state.selected_task_id:
@@ -323,8 +322,9 @@ def show_task_detail():
     cursor = conn.execute("""
         SELECT t.id, t.title, t.description, t.category, t.budget, t.status,
                t.client_id, t.freelancer_id, c.username, f.username
-        FROM Tasks t LEFT JOIN Users c ON t.client_id = c.id
-                     LEFT JOIN Users f ON t.freelancer_id = f.id
+        FROM Tasks t
+        LEFT JOIN Users c ON t.client_id = c.id
+        LEFT JOIN Users f ON t.freelancer_id = f.id
         WHERE t.id = ?
     """, (task_id,))
     row = cursor.fetchone()
@@ -336,43 +336,77 @@ def show_task_detail():
         return
 
     task = {
-        'id': row[0], 'title': row[1], 'description': row[2], 'category': row[3],
-        'budget': row[4], 'status': row[5], 'client_id': row[6], 'freelancer_id': row[7],
-        'client_name': row[8] or 'N/A', 'freelancer_name': row[9]
+        "id": row[0],
+        "title": row[1],
+        "description": row[2],
+        "category": row[3],
+        "budget": row[4],
+        "status": row[5],
+        "client_id": row[6],
+        "freelancer_id": row[7],
+        "client_name": row[8] or "N/A",
+        "freelancer_name": row[9]
     }
 
     st.title(f"Задача #{task['id']}: {task['title']}")
     col1, col2 = st.columns(2)
-    col1.metric("Клиент", task['client_name'])
-    if task['freelancer_name']:
-        col2.metric("Фрилансер", task['freelancer_name'])
+    col1.metric("Клиент", task["client_name"])
+    if task["freelancer_name"]:
+        col2.metric("Фрилансер", task["freelancer_name"])
     st.metric("Бюджет", f"{task['budget']}₽")
     st.write(f"📂 {task['category']} | 🟢 {task['status']}")
     st.markdown(f"**Описание:**\n{task['description']}")
     st.markdown("---")
 
-    # ФРИЛАНСЕР БЕРЁТ РАБОТУ
     current_user = get_current_user()
-    if current_user and current_user["role"] == "freelancer" and not task['freelancer_id'] and task['status'] == 'open':
+
+    if current_user and current_user["role"] == "freelancer" and not task["freelancer_id"] and task["status"] == "open":
         col1, col2 = st.columns(2)
         if col1.button("🚀 Взять работу", use_container_width=True):
             conn = sqlite3.connect(app.DB_NAME)
-            cursor = conn.execute(
-                "UPDATE Tasks SET freelancer_id = ?, status = 'in_progress' WHERE id = ? AND freelancer_id IS NULL",
-                (current_user['id'], task_id)
-            )
-            conn.commit()
-            conn.close()
-            if cursor.rowcount > 0:
-                st.success("✅ Работа взята! Теперь чат активен.")
-                st.rerun()
-            else:
-                st.error("Работа уже взята другим.")
+            try:
+                cursor = conn.execute(
+                    "UPDATE Tasks SET freelancer_id = ?, status = 'in_progress' WHERE id = ? AND freelancer_id IS NULL",
+                    (current_user["id"], task_id)
+                )
+                conn.commit()
+                if cursor.rowcount > 0:
+                    st.success("✅ Работа взята! Теперь чат активен.")
+                    st.rerun()
+                else:
+                    st.error("Работа уже взята другим.")
+            except Exception as e:
+                st.error(f"Ошибка: {e}")
+            finally:
+                conn.close()
 
-    # Ставки — только если задача НЕ оплачена
+    if current_user and current_user["role"] == "client":
+        if task["freelancer_id"] and task["status"] in ["in_progress", "completed"]:
+            if st.button("❌ Отказаться от фрилансера", key=f"cancel_freelancer_{task['id']}"):
+                conn = sqlite3.connect(app.DB_NAME)
+                try:
+                    cursor = conn.execute(
+                        """
+                        UPDATE Tasks
+                        SET status = 'open', freelancer_id = NULL
+                        WHERE id = ? AND client_id = ? AND freelancer_id IS NOT NULL
+                        """,
+                        (task["id"], current_user["id"])
+                    )
+                    conn.commit()
+                    if cursor.rowcount > 0:
+                        st.success("Вы отказались от фрилансера.")
+                        st.rerun()
+                    else:
+                        st.error("Не удалось отменить задачу.")
+                except Exception as e:
+                    st.error(f"Ошибка: {e}")
+                finally:
+                    conn.close()
+
     bids = get_bids_for_task(task_id)
 
-    if task['status'] != 'paid':
+    if task["status"] != "paid":
         st.subheader("💰 Ставки")
         if bids:
             for bid in bids:
@@ -380,14 +414,13 @@ def show_task_detail():
         else:
             st.info("Ставок пока нет.")
 
-        # ФОРМА СТАВОК (фрилансер)
         if current_user and current_user["role"] == "freelancer":
             with st.form(key="bid_form", clear_on_submit=True):
                 amount = st.number_input("Сумма (₽)", min_value=100.0, step=50.0)
                 message = st.text_area("Комментарий", placeholder="Сделаю быстро...")
                 if st.form_submit_button("🎯 Подать ставку"):
                     if amount > 0:
-                        bid_id = create_bid(task_id, current_user['id'], amount, message.strip())
+                        bid_id = create_bid(task_id, current_user["id"], amount, message.strip())
                         st.success(f"✅ Ставка #{bid_id} подана!")
                         st.rerun()
                     else:
@@ -399,7 +432,6 @@ def show_task_detail():
             for bid in bids:
                 st.markdown(f"**{bid.get('freelancer_name', 'N/A')}**: {bid.get('amount', 0)}₽ | {bid.get('message', '—')}")
 
-    # ✅ ЧАТ (клиент всегда пишет, фрилансер — клиенту)
     st.subheader("💬 Переписка")
     messages = get_messages(task_id) or []
     if messages:
@@ -409,16 +441,28 @@ def show_task_detail():
         st.info("Сообщений нет.")
 
     if current_user:
-        with st.form(key=f"chat_form_{task['id']}", clear_on_submit=True):  # ключ уникален для задачи
-            content = st.text_area("Сообщение", placeholder="Обсудим детали...")
-            if st.form_submit_button("📤 Отправить"):
-                if content.strip():
-                    receiver_id = task['client_id'] if current_user['role'] == 'freelancer' else None
-                    create_message(task_id, current_user['id'], receiver_id, content.strip())
-                    st.success("✅ Отправлено!")
-                    st.rerun()
-                else:
-                    st.warning("Напиши текст!")
+        if task["freelancer_id"] is None:
+            st.info("Чат недоступен: фрилансер не назначен.")
+        else:
+            with st.form(key=f"chat_form_{task['id']}", clear_on_submit=True):
+                content = st.text_area("Сообщение", placeholder="Обсудим детали...")
+                if st.form_submit_button("📤 Отправить"):
+                    if content.strip():
+                        if current_user["role"] == "freelancer":
+                            receiver_id = task["client_id"]
+                        elif current_user["role"] == "client":
+                            receiver_id = task["freelancer_id"]
+                        else:
+                            receiver_id = None
+
+                        if receiver_id is None:
+                            st.error("Нельзя отправить сообщение: второй участник чата не назначен.")
+                        else:
+                            create_message(task_id, current_user["id"], receiver_id, content.strip())
+                            st.success("✅ Отправлено!")
+                            st.rerun()
+                    else:
+                        st.warning("Напиши текст!")
 
 # Main роутер
 def main():
