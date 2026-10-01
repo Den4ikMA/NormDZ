@@ -1,0 +1,2 @@
+python -m pip install fastapi uvicorn pydantic
+uvicorn main:app --reload --port 3000

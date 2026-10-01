@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8"><title>Task Stock</title>
+<style>
+body { font-family: sans-serif; max-width: 450px; margin: 40px auto; background: #f0f2f5; color: #333; }
+.card { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); margin-bottom: 15px; }
+.task { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #eee; }
+.active { color: #007bff; } .completed { color: green; text-decoration: line-through; } .expired { color: red; font-weight: bold; }
+button { cursor: pointer; padding: 6px 12px; background: #28a745; color: white; border: none; border-radius: 4px; }
+input { padding: 6px; margin-right: 5px; border: 1px solid #ccc; border-radius: 4px; }
+</style>
+</head>
+<body>
+<div class="card"><h2>🪙 Баланс: <span id="balance">0</span> монеток</h2></div>
+<div class="card">
+<h3>Добавить задачу</h3>
+<input type="text" id="txt" placeholder="Что сделать?" style="width: 150px;">
+<input type="number" id="sec" placeholder="Сек." style="width: 60px;">
+<input type="number" id="cost" placeholder="Монет" style="width: 60px;">
+<button onclick="addTask()" style="background:#007bff">⏱</button>
+</div>
+<div class="card"><h3>Список задач (Обновление 1 сек.)</h3><div id="list"></div></div>
+<script>
+const API = 'http://localhost:3000/api'; // Пусть студенты настроят свой порт
+async function update() {
+try {
+const uRes = await fetch(`${API}/user`); const u = await uRes.json();
+document.getElementById('balance').innerText = u.balance;
+const tRes = await fetch(`${API}/tasks`); const tasks = await tRes.json();
+const container = document.getElementById('list'); container.innerHTML = '';
+tasks.forEach(t => {
+container.innerHTML += `<div class="task ${t.status}">
+<div><b>${t.text}</b> (${t.cost} 🪙)<br><small>Статус: ${t.status}</small></div>
+${t.status === 'active' ? `<button onclick="comp('${t.id}')">✓</button>` : ''}
+</div>`;
+});
+} catch (e) { console.log("Бэкенд пока не ответил..."); }
+}
+async function addTask() {
+await fetch(`${API}/tasks`, {
+method: 'POST',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify({ text: document.getElementById('txt').value, duration_seconds: parseInt(document.getElementById('sec').value), cost: parseInt(document.getElementById('cost').value) })
+});
+update();
+}
+async function comp(id) {
+const res = await fetch(`${API}/tasks/${id}/complete`, { method: 'PATCH' });
+if (!res.ok) alert((await res.json()).error || "Ошибка!");
+update();
+}
+setInterval(update, 1000); update();
+</script>
+</body>
+</html>
