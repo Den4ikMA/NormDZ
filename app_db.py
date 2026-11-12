@@ -16,8 +16,8 @@ cursor = conn.cursor()
 DOSTYP = {
     "Гость": ["view_tovars"],
     "авторизированный кдиент": ["view_tovars"],
-    "менеджер": ["view_tovars", "view_orders", "sort_tovar"],
-    "администратор": ["view_tovars", "view_orders", "edit_orders", "sort_tovar", "edit_tovar"]
+    "менеджер": ["view_tovars", "view_orders", "sort_tovar", "search_tovars"],
+    "администратор": ["view_tovars", "search_tovars", "view_orders", "edit_orders", "sort_tovar", "edit_tovar"]
     }
 
 if "page" not in st.session_state:
@@ -52,7 +52,7 @@ if not st.session_state.logged_in:
             st.session_state.logged_in = True
             st.session_state.user_name = user['name']
             st.session_state.user_role = user['role']
-            st.session_state.page = "catalog" # При входе всегда открываем каталог
+            st.session_state.page = "catalog"
             st.rerun()
         else:
             st.write("неверный логин или пароль")
@@ -96,7 +96,7 @@ else:
             elif vybor == "цене(по уменьшению)":
                 sort = "tovar.price DESC"
             else:
-                sort = "tovar.name ASC"
+                sort = "tovar.name ASC" 
                 
         tovars = f"""
         SELECT
@@ -122,6 +122,15 @@ else:
         """
         cursor.execute(tovars)
         all_tovars = cursor.fetchall()
+
+        poisk = "WHERE tovar.vid = 1"
+
+        if has_permissions("search_tovars"):
+            search = st.text_input("Поиск товара")
+            poisk = """
+            WHERE tovar.vid = 1 AND (tovar.name LIKE ? OR category.name LIKE ?)
+            """
+            
 
         zagl_path = "assets\\zagl.jpg"
 
