@@ -1,6 +1,8 @@
 import streamlit as st
 import sqlite3
 import os
+from st_keyup import st_keyup
+
 
 st.set_page_config(layout="wide")
 
@@ -16,8 +18,8 @@ cursor = conn.cursor()
 DOSTYP = {
     "Гость": ["view_tovars"],
     "авторизированный кдиент": ["view_tovars"],
-    "менеджер": ["view_tovars", "view_orders", "sort_tovar", "search_tovars"],
-    "администратор": ["view_tovars", "search_tovars", "view_orders", "edit_orders", "sort_tovar", "edit_tovar"]
+    "менеджер": ["view_tovars", "view_orders", "filt_tovars","sort_tovar", "search_tovars"],
+    "администратор": ["view_tovars", "search_tovars", "view_orders", "edit_orders", "filt_tovars", "sort_tovar", "edit_tovar"]
     }
 
 if "page" not in st.session_state:
@@ -86,17 +88,49 @@ else:
         st.title("Каталог товаров")
 
         sort = "tovar.name ASC"
+
+        filt = ""
+
+        if has_permissions("filt_tovars"):
+            take = st.selectbox("фильтр:", ["ВСЕ","SVМЕБЕЛЬ", "Мебелони", "Инвуд", "RIDBERG"])
+
+            if take == "ВСЕ":
+                filt = ""
+            elif take == "SVМЕБЕЛЬ":
+                filt = " AND manufacturer.name = 'SVМЕБЕЛЬ'"
+            elif take == "Мебелони":
+                filt = " AND manufacturer.name = 'Мебелони'"
+            elif take == "Инвуд":
+                filt = " AND manufacturer.name = 'Инвуд'"
+            else:
+                filt = " AND manufacturer.name = 'RIDBERG'"
         
 
         if has_permissions("sort_tovar"):
-            vybor = st.selectbox("Сортировать по:", ["алфавиту", "цене(по уменьшению)", "цене(по возрастанию)"])
+            vybor = st.selectbox("Сортировать по:", ["алфавиту", "цене(по уменьшению)", "цене(по возрастанию)", "количеству на складе(по уменьшению)", "количеству на складе(по возрастанию)"])
 
             if vybor == "цене(по возрастанию)":
                 sort = "tovar.price ASC"
             elif vybor == "цене(по уменьшению)":
                 sort = "tovar.price DESC"
+            elif vybor == "количеству на складе(по уменьшению)":
+                sort = "tovar.quantity DESC"
+            elif vybor == "количеству на складе(по возрастанию)":
+                sort = "tovar.quantity ASC"
             else:
-                sort = "tovar.name ASC" 
+                sort = "tovar.name ASC"
+                
+        poisk = "WHERE tovar.vid = 1"
+        params = []
+
+        if has_permissions("search_tovars"):
+            search = st_keyup("Поиск товара", debounce=300)
+            if search:
+                poisk = """
+                WHERE tovar.vid = 1
+                AND (LOWER(tovar.name) LIKE LOWER(?) OR LOWER(category.name) LIKE LOWER(?))
+                """
+                params = [f"%{search}%", f"%{search}%"]
                 
         tovars = f"""
         SELECT
@@ -117,19 +151,12 @@ else:
         INNER JOIN category ON tovar.category_id = category.id
         INNER JOIN supplier ON tovar.supplier_id = supplier.id
         INNER JOIN manufacturer ON tovar.manufacturer_id = manufacturer.id
-        WHERE tovar.vid = 1
+        {poisk}
+        {filt}
         ORDER BY {sort}
         """
-        cursor.execute(tovars)
+        cursor.execute(tovars, params)
         all_tovars = cursor.fetchall()
-
-        poisk = "WHERE tovar.vid = 1"
-
-        if has_permissions("search_tovars"):
-            search = st.text_input("Поиск товара")
-            poisk = """
-            WHERE tovar.vid = 1 AND (tovar.name LIKE ? OR category.name LIKE ?)
-            """
             
 
         zagl_path = "assets\\zagl.jpg"
