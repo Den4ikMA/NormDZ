@@ -2,6 +2,8 @@ import streamlit as st
 import sqlite3
 import os
 from st_keyup import st_keyup
+from datetime import date, timedelta
+import random
 
 
 st.set_page_config(layout="wide")
@@ -197,6 +199,12 @@ else:
             st.session_state.page = "catalog"
             st.rerun()
 
+        if has_permissions("edit_orders"):
+            if st.button("Добавить заказ"):
+                st.session_state.page = "add_order"
+                st.rerun()
+
+        
         st.title("Таблица заказов")
         
         zakaz = f"""
@@ -205,13 +213,19 @@ else:
         orders.date_order,
         orders.date_delivery,
         orders.code,
+        tovar.sku,
+        tovar.name,
         pvz.address,
         users.name,
-        order_status.status
+        order_status.status,
+        order_items.id
         FROM orders
+        INNER JOIN order_items ON orders.id = order_items.id
         INNER JOIN pvz ON orders.pvz_id = pvz.id
         INNER JOIN users ON orders.user_id = users.id
+        INNER JOIN tovar ON order_items.id_tovar = tovar.id
         INNER JOIN order_status ON orders.status_id = order_status.id
+        ORDER BY orders.id ASC
         """
 
         cursor.execute(zakaz)
@@ -222,7 +236,73 @@ else:
             st.dataframe(orders_table, use_container_width=True)
         else:
             st.info("Заказов нет")
-            
+
+    elif st.session_state.page == "add_order" and has_permissions("edit_orders"):
+        st.subheader("Добавление заказа")
+
+        if st.button("Назад к заказам"):
+            st.session_state.page = "orders"
+            st.rerun()
+
+        
+        cursor.execute("SELECT id, name FROM tovar WHERE vid = 1")
+        tovars_dict = {f"{row['name']} (ID: {row['id']})": row['id'] for row in cursor.fetchall()}
+
+       
+        cursor.execute("SELECT id, address FROM pvz")
+        pvzs_dict = {row['address']: row['id'] for row in cursor.fetchall()}
+
+        with st.form("add_order_form"):
+            select_tovar = st.selectbox("Товар", options=list(tovars_dict.keys()))
+            client_fio = st.text_input("ФИО покупателя")
+            select_pvz = st.selectbox("ПВЗ", options=list(pvzs_dict.keys()))
+
+            submitted = st.form_submit_button("Сохранить заказ")
+            if submitted:
+                fio_clean = client_fio.strip()
+
+                if not fio_clean:
+                    st.error("Забыли ввести имя")
+                    st.stop()
+
+                
+                cursor.execute("SELECT id FROM users WHERE name = ?", [fio_clean])
+                user_row = cursor.fetchone()
+
+                if user_row is not None:
+                    user_id = user_row['id']
+                else:
+                    cursor.execute("INSERT INTO users (name, role_id) VALUES (?, 3)", [fio_clean])
+                    user_id = cursor.lastrowid
+
+                
+                tovar_id = tovars_dict[select_tovar]
+                pvz_id = pvzs_dict[select_pvz]
+                date_order = date.today().strftime("%d.%m.%Y")
+                date_delivery = (date.today() + timedelta(days=5)).strftime("%d.%m.%Y")
+                code = random.randint(900, 999)
+                status_id = 1
+
+               
+                cursor.execute("""
+                    INSERT INTO orders (date_order, date_delivery, pvz_id, user_id, code, status_id)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                """, (date_order, date_delivery, pvz_id, user_id, code, status_id))
+
+                new_order_id = cursor.lastrowid
+
+                cursor.execute("""
+                    INSERT INTO order_items (id, id_tovar)
+                    VALUES (?, ?)
+                """, (new_order_id, tovar_id))
+
+                conn.commit()
+
+                
+                st.session_state.page = "orders"
+                st.rerun()
+
+                  
     if st.sidebar.button("выход"):
         st.session_state.logged_in = False
         st.rerun()
