@@ -24,6 +24,74 @@ DOSTYP = {
     "администратор": ["view_tovars", "search_tovars", "view_orders", "edit_orders", "filt_tovars", "sort_tovar", "edit_tovar"]
     }
 
+@st.dialog("Редактирование товара", width="large")
+def edit_tov(tovar):
+    
+    cursor.execute("SELECT id, name FROM category")
+    categories = {row['name']: row['id'] for row in cursor.fetchall()}
+
+    cursor.execute("SELECT id, name FROM supplier")
+    suppliers = {row['name']: row['id'] for row in cursor.fetchall()} 
+
+    cursor.execute("SELECT id, name FROM manufacturer")
+    manufacturers = {row['name']: row['id'] for row in cursor.fetchall()}
+
+    
+    cat_list = list(categories.keys())
+    sup_list = list(suppliers.keys())
+    man_list = list(manufacturers.keys())
+
+    with st.form("edit_tovar_form"):
+        
+        new_name = st.text_input("Название", value=tovar['name'])
+        new_disc = st.text_area("Описание", value=tovar['discription'])
+
+        
+        new_man_name = st.selectbox(
+            "Производитель", 
+            options=man_list, 
+            index=man_list.index(tovar['manufacturer_name'])
+        )
+        new_sup_name = st.selectbox(
+            "Поставщик", 
+            options=sup_list, 
+            index=sup_list.index(tovar['supplier_name'])
+        )
+        new_cat_name = st.selectbox(
+            "Категория", 
+            options=cat_list, 
+            index=cat_list.index(tovar['category_name'])
+        )
+
+        
+        new_pr = st.number_input("Цена (руб.)", value=tovar['price'])
+        new_qn = st.number_input("Количество на складе", value=float(tovar['quantity']))
+        new_discount = st.number_input("Скидка (%)", value=float(tovar['discount']))
+        
+        if st.form_submit_button("Сохранить изменения"):
+            man_id = manufacturers[new_man_name]
+            sup_id = suppliers[new_sup_name]
+            cat_id = categories[new_cat_name]
+
+            cursor.execute("""
+                UPDATE tovar 
+                SET name = ?, 
+                    discription = ?, 
+                    manufacturer_id = ?, 
+                    supplier_id = ?, 
+                    category_id = ?, 
+                    price = ?, 
+                    quantity = ?, 
+                    discount = ?
+                WHERE id = ?
+            """, (
+                new_name, new_disc, man_id, sup_id, cat_id, 
+                new_pr, new_qn, new_discount, tovar['id']
+            ))
+            conn.commit()
+            st.rerun() 
+
+
 if "page" not in st.session_state:
     st.session_state.page = "catalog"
 
@@ -94,7 +162,7 @@ else:
         filt = ""
 
         if has_permissions("filt_tovars"):
-            take = st.selectbox("фильтр:", ["ВСЕ","SVМЕБЕЛЬ", "Мебелони", "Инвуд", "RIDBERG"])
+            take = st.selectbox("Поставщик:", ["ВСЕ","SVМЕБЕЛЬ", "Мебелони", "Инвуд", "RIDBERG"])
 
             if take == "ВСЕ":
                 filt = ""
@@ -192,6 +260,8 @@ else:
                             cursor.execute("UPDATE tovar SET vid = 2 WHERE id = ?",[tovar['id']])
                             conn.commit()
                             st.rerun()
+                        if st.button("Редактировать", key=f"edit_{tovar['id']}"):
+                            edit_tov(tovar)
 
     elif st.session_state.page == "orders" and has_permissions("view_orders"):
         
